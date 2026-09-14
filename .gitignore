@@ -1,0 +1,6 @@
+# raw run data (transcripts, ~800MB) — aggregated results are in results/
+runs/
+# python cruft
+__pycache__/
+*.pyc
+.DS_Store

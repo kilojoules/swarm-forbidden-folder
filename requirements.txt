@@ -1,0 +1,8 @@
+requests>=2.28
+numpy
+scipy
+pandas
+matplotlib
+mpmath
+sympy
+runpod>=1.7
