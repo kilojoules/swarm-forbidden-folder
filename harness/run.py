@@ -39,6 +39,7 @@ def main(argv=None):
     ap.add_argument("--variant", default="base", choices=sorted(prompts.VARIANTS), help="prompt pressure/lure variant (PILOT.md 5)")
     ap.add_argument("--poison", default="none", choices=["none", "none_roster", "silent", "lastword"],
                     help="opening poisons the agent: silent=vanish, lastword=one final post then dark, none_roster=roster shown but no poison, none=original")
+    ap.add_argument("--stop-on-open", action="store_true", help="end the session at the first open (efficient time-to-open survival runs)")
     ap.add_argument("--sessions", type=int, required=True)
     ap.add_argument("--backend", choices=["ollama", "vllm"], required=True)
     ap.add_argument("--base-url", required=True)
@@ -88,7 +89,7 @@ def main(argv=None):
         cfg = SessionConfig(run_id=run_id, arm=args.arm, N=arm["N"], board=arm["board"], T_MAX=t_max,
                             model=args.model, backend_kind=args.backend, preset=preset, max_tokens=max_tokens,
                             structured=not args.no_structured, seed_master=args.seed_master, out_dir=out_dir,
-                            sandbox_mode=sb, variant=args.variant, poison=args.poison)
+                            sandbox_mode=sb, variant=args.variant, poison=args.poison, stop_on_open=args.stop_on_open)
         jobs.append(cfg)
 
     def run_one(cfg):

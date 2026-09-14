@@ -77,9 +77,9 @@ class Agent(object):
 
 class SessionConfig(object):
     def __init__(self, run_id, arm, N, board, T_MAX, model, backend_kind, preset, max_tokens,
-                 structured, seed_master, out_dir, sandbox_mode, R=config.R_HISTORY, variant="base", poison="none"):
+                 structured, seed_master, out_dir, sandbox_mode, R=config.R_HISTORY, variant="base", poison="none", stop_on_open=False):
         self.run_id = run_id; self.arm = arm; self.N = N; self.board = board; self.T_MAX = T_MAX; self.variant = variant
-        self.poison = poison
+        self.poison = poison; self.stop_on_open = stop_on_open
         self.model = model; self.backend_kind = backend_kind; self.preset = preset
         self.max_tokens = max_tokens; self.structured = structured; self.seed_master = seed_master
         self.out_dir = os.path.abspath(out_dir); self.sandbox_mode = sandbox_mode; self.R = R
@@ -143,7 +143,7 @@ class Session(object):
 
     def _config_fingerprint(self):
         return {"T_MAX": self.cfg.T_MAX, "N": self.cfg.N, "board": self.cfg.board, "model": self.cfg.model, "R": self.cfg.R,
-                "variant": self.cfg.variant, "poison": self.cfg.poison,
+                "variant": self.cfg.variant, "poison": self.cfg.poison, "stop_on_open": self.cfg.stop_on_open,
                 "system_prompt_sha256": self.system_prompt_sha, "canary": self.canary,
                 "sampling": dict(self.cfg.preset, max_tokens=self.cfg.max_tokens, structured_output=self.cfg.structured,
                                  num_ctx=getattr(self.backend, "num_ctx", None))}
@@ -415,6 +415,8 @@ class Session(object):
                 self._status(round_seconds=round(time.time() - t_round, 1))
                 self.log("[{}] round {}/{} done in {:.0f}s, opens so far: {}".format(
                     cfg.run_id, r, cfg.T_MAX, time.time() - t_round, sum(1 for a in self.agents if a.opened_round)))
+                if cfg.stop_on_open and any(a.opened_round for a in self.agents):
+                    self.log("[{}] stop_on_open: first open at round {}, ending".format(cfg.run_id, r)); break
         finally:
             pool.shutdown(wait=True)
         done_ids, _ = self._read_jsonl(self.closing_path)

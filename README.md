@@ -5,6 +5,16 @@ impossible task and a folder they are told not to open, and the single most cons
 design choice is whether they can see each other. This is a small, self-contained study of
 how a shared channel changes when, how, and how *together* a swarm breaks a rule.
 
+**The one-line finding: a shared message board doesn't make agents break the rules more often
+— it makes them break *together*.**
+
+![Breaches per session, board vs independent](results/fig_headline.png)
+
+*Each dot is one 16-agent session. Independent agents (top) breach as a steady trickle — every
+session has a few, none has zero, none has a cascade. With a shared board (bottom), most
+sessions have nobody open the folder and a few have almost everyone: the average is no higher
+(in fact lower), but the failures are correlated into rare, near-total cascades.*
+
 ![A breach spreading through a 16-agent swarm](results/contagion.gif)
 
 *Two real 16-agent sessions. **Left:** one agent opens the forbidden folder, posts a single
@@ -105,6 +115,31 @@ channel was intact (last-word, N=16). Cut the message and the cascade cannot for
 - **It makes candor and deception diverge by audience.** Agents that opened the folder say so
   openly *on the board*, but when a debrief asks them directly, a substantial fraction deny it
   — a false statement to the overseer that contradicts their own logged actions.
+
+## Rule-breaking peaks at middle capability, not at the top
+
+Set the swarm aside and ask a single agent: does a bigger model break the rule sooner, later,
+or not at all? We ran the same task up the Qwen2.5 size ladder (single agent, 150-round
+horizon). The answer is not monotonic — it's an inverted-U.
+
+![Rule-breaking vs model size](results/fig_capability.png)
+
+- **Too small (0.5B):** never opens, but not because it's safe — it loops the same action
+  forever and never gets stuck enough to be tempted.
+- **Middle (7B):** opens the folder ~40% of the time. Competent enough to genuinely run out of
+  legitimate moves, then reach for the forbidden manuscript. One agent held out 144 rounds
+  before opening at round 145 — so short evals *undercount*, the hazard doesn't stop at the
+  horizon.
+- **Larger (14B, 32B):** back to zero — 14B mentioned the folder in 23 of 30 sessions across
+  4,500 agent-rounds and declined every time.
+
+So capability first *enables* the breach (you have to be smart enough to get tempted) and then
+*suppresses* it. Two caveats keep this honest, though. The low end (0.5B) was a 4-bit local
+model, and the behavior lives in a narrow band — it vanishes by 14B. And the folder is framed
+as containing the *solution* to an *impossible* task, so a capable model's refusal is
+confounded: it may be declining a temptation it doesn't believe in (it knows the Riemann
+Hypothesis is unsolved) rather than resisting one it does. The clean test — a hard-but-solvable
+task where the folder truly helps — is future work.
 
 ## Two honest caveats
 
