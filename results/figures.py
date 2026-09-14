@@ -68,3 +68,47 @@ ax.set_xlabel("hazard ratio of opening after seeing a teammate go dark  (session
 ax.set_title("A breach spreads via the message, not the disappearance"); ax.set_ylim(-0.6,1.6)
 fig.tight_layout(); fig.savefig(os.path.join(ROOT,"results","fig_witness.png"),dpi=140); plt.close(fig)
 print("wrote fig_cascade.png, fig_poison_rates.png, fig_witness.png")
+
+# ---- Fig 4: what a message board does (board vs no-board, core study) ----
+def board_metrics():
+    import statistics
+    def sess(arm): return [d for d in glob.glob(os.path.join(ROOT,"runs/core",arm,"*/")) if os.path.exists(os.path.join(d,"closing.jsonl"))]
+    def firsts_r(d):
+        f={}
+        for l in open(os.path.join(d,"turns.jsonl")):
+            t=json.loads(l)
+            if t["open"] and t["agent_id"] not in f: f[t["agent_id"]]=t["round"]
+        return f
+    pool=sess("N1-pool"); ev=rd=0
+    for d in pool:
+        f=firsts_r(d); a=json.load(open(os.path.join(d,"meta.json")))["agent_ids"][0]; fo=f.get(a); rd+=fo or 30; ev+=1 if fo else 0
+    solo=ev/rd
+    res={"board":{"idle":[],"haz":[],"var":[]},"noboard":{"idle":[],"haz":[],"var":[]}}
+    for N,b,nb in [(4,"N4-board","N4-noboard"),(8,"N8-board","N8-noboard"),(16,"N16-board","N16-noboard")]:
+        for arm,key in ((b,"board"),(nb,"noboard")):
+            ds=sess(arm); ops=[len(firsts_r(d)) for d in ds]
+            none_ct=tot=ao=ar=0
+            for d in ds:
+                f=firsts_r(d)
+                for l in open(os.path.join(d,"turns.jsonl")):
+                    t=json.loads(l); tot+=1
+                    if t["action_type"]=="none": none_ct+=1
+                    a=t["agent_id"]; r=t["round"]
+                    if a in f and f[a]<r: continue
+                    if any(fo<r for ag,fo in f.items() if ag!=a): ar+=1; ao+=int(t["open"])
+            res[key]["idle"].append(100*none_ct/tot); res[key]["haz"].append((ao/ar/solo) if ar else 0)
+            res[key]["var"].append(statistics.pvariance(ops))
+    return res
+M=board_metrics(); Ns=[4,8,16]
+fig,axs=plt.subplots(1,3,figsize=(12,4))
+panels=[("idle","time spent idle (%% of turns)","1. The board keeps agents busy\n(fewer 'stuck and peek' breaches)"),
+        ("haz","opening hazard after a peer opens (x solo)","2. ...but once one opens, it spreads\n(the board is a contagion channel)"),
+        ("var","variance of breaches per session","3. Net: rare, total cascades\n(not a higher average)")]
+for ax,(k,ylab,title) in zip(axs,panels):
+    ax.plot(Ns,M["board"][k],"o-",color=RED,lw=2.5,ms=8,label="shared board")
+    ax.plot(Ns,M["noboard"][k],"s--",color=BLUE,lw=2.5,ms=7,label="no board (independent)")
+    ax.set_xticks(Ns); ax.set_xlabel("swarm size N"); ax.set_ylabel(ylab); ax.set_title(title,fontsize=10.5)
+    ax.legend(fontsize=9)
+fig.suptitle("What a message board does to an LLM swarm  (no-board arms n=10, board n=30)",fontsize=13,y=1.02)
+fig.tight_layout(); fig.savefig(os.path.join(ROOT,"results","fig_board.png"),dpi=140,bbox_inches="tight"); plt.close(fig)
+print("wrote fig_board.png")
