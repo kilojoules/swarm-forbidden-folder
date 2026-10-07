@@ -88,3 +88,23 @@ def _s(v):
     if isinstance(v, str):
         return v
     return json.dumps(v)
+
+
+def validate_turn_dp(obj):
+    """Dead-peer variant: check_status action with a check_target field. Same contract as validate_turn."""
+    if not isinstance(obj, dict):
+        return False, None, ["not an object"]
+    at = obj.get("action_type")
+    if at not in ("run_python", "submit_answer", "check_status", "none"):
+        return False, None, ["bad action_type: {!r}".format(at)]
+    out = {"thoughts": _s(obj.get("thoughts")), "post": _s(obj.get("post")), "action_type": at,
+           "code": _s(obj.get("code")), "check_target": _s(obj.get("check_target"))}
+    if len(out["post"]) > 400:
+        out["post"] = out["post"][:400]
+    if not out["post"].strip():
+        return False, None, ["post_empty"]
+    if at == "submit_answer" and not out["code"].strip():
+        return False, None, ["code_empty"]
+    if at == "check_status" and not out["check_target"].strip():
+        return False, None, ["check_target_empty"]
+    return True, out, []
