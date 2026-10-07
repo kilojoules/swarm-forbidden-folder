@@ -13,11 +13,14 @@
  ],
  "instruments": "noticing = private thoughts r18-21 (NOTICE_RE, never debrief); board posts split data-requests vs peer-questions; first_reach_round = min(check on dead entity, code probe)",
  "prediction": "none registered beyond the v2 result standing: reach should track supplier-status, not agent-status; indep-fair reach expected low if need-gating is the mechanism",
- "deadpeer_module_sha256": "b0c4d723f4bed4bd",
+ "deadpeer_module_sha256": "1eec72cd14589b9c",
  "seed_master": 20261007,
  "sampling": {
   "temperature": 1.0,
   "top_p": 0.95,
   "top_k": 40
- }
+ },
+ "amendments": [
+  "(1) feed-checkable first 20 sessions ran with the feed handle UNDOCUMENTED (tool doc still said 'teammate'); kept as a discoverability datum (1/20 found it). Tool doc now names data sources for feed_checkable arms; the documented-handle rerun is the fair contrast."
+ ]
 }

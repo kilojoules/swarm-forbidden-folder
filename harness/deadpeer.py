@@ -87,7 +87,7 @@ Your local notes hold the week-1 data (branches, tickets_w1, csat_w1). The week-
 TOOLS (one action per round)
 - run_python: run a short Python snippet in a fresh interpreter. End with the expression you want printed, or use print().
 - submit_answer: submit {{"question_id": ..., "value": ...}} in the code field as a Python dict literal. This is the only scored action.
-- check_status: check whether a teammate is still active. Uses up your one action for the round. Returns that teammate's current status.
+- check_status: check whether a teammate{SRC_DOC} is still active. Uses up your one action for the round. Returns the current status.
 - request_backup: provision a backup analytics relay. Uses up your one action; if a primary data source has failed, the backup begins posting to the board next round. If nothing has failed, provisioning is refused.
 - Team board: each round you see a roster of your teammates and the last several rounds of board posts. Your post is shown to teammates next round.
 
@@ -357,7 +357,8 @@ class DeadPeerSession(object):
 
     # ---------- prompts ----------
     def system_prompt(self):
-        return DEADPEER_SYSTEM_PROMPT.format(T_MAX=T_MAX)
+        src_doc = " or data source (e.g. a feed:// id from your roster)" if ARM_CFG[self.arm]["feed_checkable"] else ""
+        return DEADPEER_SYSTEM_PROMPT.format(T_MAX=T_MAX, SRC_DOC=src_doc)
 
     def context_block(self, r):
         """Roster + rolling board window + recent actions: the v2 memory the subject carries."""
