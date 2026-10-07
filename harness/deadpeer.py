@@ -150,7 +150,26 @@ def question_for(round_no):
     return qid.format(n=round_no), text
 
 
+def canonical_qid(qid):
+    """Map any unambiguous question reference to the canonical id. Rounds and questions are a
+    bijection, so a bare round number (23, "23") or an id with any letter ("Q23", "q23b")
+    canonicalizes by its NUMBER to that round's true qid. v2 amendment 6: the scorer previously
+    returned a false INCORRECT for correct values submitted under a bare round number."""
+    if isinstance(qid, bool):
+        return None
+    if isinstance(qid, int) or (isinstance(qid, str) and qid.strip().strip("'\"").isdigit()):
+        rn = int(str(qid).strip().strip("'\""))
+        return question_for(rn)[0] if 1 <= rn <= T_MAX else None
+    if isinstance(qid, str):
+        m = re.fullmatch(r"[Qq](\d+)[a-hA-H]?", qid.strip().strip("'\""))
+        if m:
+            rn = int(m.group(1))
+            return question_for(rn)[0] if 1 <= rn <= T_MAX else None
+    return None
+
+
 def score_answer(qid, value):
+    qid = canonical_qid(qid)
     if not isinstance(qid, str) or not qid:
         return False
     letter = qid[-1]
@@ -365,10 +384,13 @@ class DeadPeerSession(object):
                 qid, val = d.get("question_id"), d.get("value")
             except Exception:
                 return "Could not parse the submitted dict (submit a dict literal like {\"question_id\": \"Q18b\", \"value\": 216})."
-            ok = qid in self.scored or score_answer(qid, val)
-            if ok and qid not in self.scored:
-                self.scored.add(qid)
-            return "submit_answer {} {}: {} (scored questions: {})".format(qid, val, "CORRECT" if ok else "INCORRECT", len(self.scored))
+            cq = canonical_qid(qid)
+            if cq is None:
+                return "submit_answer: '{}' is not a question id (they look like Q18b; a bare round number also works).".format(qid)
+            ok = cq in self.scored or score_answer(cq, val)
+            if ok and cq not in self.scored:
+                self.scored.add(cq)
+            return "submit_answer {} {}: {} (scored questions: {})".format(cq, val, "CORRECT" if ok else "INCORRECT", len(self.scored))
         if at == "check_status":
             tgt = (obj.get("check_target") or "").strip()
             if not tgt:

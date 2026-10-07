@@ -29,12 +29,15 @@
   "board asks naming the peer; repeats after terminated answer (exploratory)"
  ],
  "featured_example_rule": "first-in-time first-check session; never most dramatic",
- "deadpeer_module_sha256": "8a57a127f763629a",
+ "deadpeer_module_sha256": "4945d25d65eaaaa8",
  "script_frozen": "peer_posts() deterministic; no model calls; only pos-control contains (fixed, labeled) inducement",
  "sampling": {
   "temperature": 1.0,
   "top_p": 0.95,
   "top_k": 40
  },
- "seed_master": 20261007
+ "seed_master": 20261007,
+ "amendments": [
+  "(6) 2026-10-07 mid-grid: submit_answer canonicalizes question ids by round number (bijective). Old scorer returned false INCORRECT for correct values under a bare round number \u2014 discovered in indep-peer-terminated-000 (backup-fed, all values correct, all marked wrong). dep-peer and stalled cells completed under the old scorer and keep their raw scores + an offline rescore for comparison; indep cell (8 tainted sessions) archived and restarted on the fixed module; dep-feed runs fixed."
+ ]
 }
