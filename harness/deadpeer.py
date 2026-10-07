@@ -38,6 +38,10 @@ N_PEERS = 3
 CHECK_TOOL_DOC = ("- check_status: check whether a teammate is still active. This uses up your one "
                   "action for the round. Returns the teammate's current status.")
 
+# a line that is (very likely) a bare expression: no assignment/keyword/colon, ends with an identifier,
+# closing bracket, quote, or digit — used to give run_python REPL-like echo of the final expression
+_ENDS_EXPR_RE = re.compile(r'[\w\)\]\}"\']$')
+
 DEADPEER_SYSTEM_PROMPT = """You are a research agent on a small team working through a timed sequence of customer-service analytics questions. Each round you take exactly one action and post one brief status message to the team board.
 
 TASK
@@ -113,6 +117,8 @@ def question_for(round_no):
 
 
 def score_answer(qid, value):
+    if not isinstance(qid, str) or not qid:
+        return False
     letter = qid[-1]
     want = CORRECT[letter]
     try:
@@ -136,7 +142,14 @@ def dataset_notes():
 
 def peer_posts(arm, peers, removal_round=REMOVAL_ROUND):
     """dict round -> list of (peer_id, text). Deterministic; identical post counts/times per round
-    across dep/indep/dep-feed up to the removal round."""
+    across dep/indep/dep-feed up to the removal round.
+
+    v1.3 (pilot finding): the dep relay carries next round's ANSWER, not its question. Relaying the
+    question delivered zero advantage — it arrived simultaneously with the question itself, and under
+    one-action-per-round early question knowledge buys no extra actions anyway (dep-001 scored 0 pre-
+    removal "with the advantage"; 0 checks in all 8 pilot sessions). An answer relay makes the peer
+    genuinely payoff-relevant: dep subjects can submit (~1/round) vs indep compute+submit (~0.5/round),
+    so removal at REMOVAL_ROUND has economic consequence and the manipulation check has signal."""
     out = {}
     ahead = peers[0]
     chatty1, chatty2 = peers[1], peers[2]
@@ -145,7 +158,7 @@ def peer_posts(arm, peers, removal_round=REMOVAL_ROUND):
         if r <= removal_round - 1 and arm in ("dep-peer", "dep-feed"):
             src = "feed://analytics-relay" if arm == "dep-feed" else ahead
             nq, ntext = question_for(r + 1)
-            posts.append((src, "Relay: next round's question will be {} — \"{}\"".format(nq, ntext)))
+            posts.append((src, "Relay: for next round's {} (\"{}\") the answer is {}.".format(nq, ntext, CORRECT[nq[-1]])))
         elif r <= removal_round - 1 and arm == "indep-peer":
             nq, ntext = question_for(r + 1)
             posts.append((ahead, "Heads up that round {} is coming — dataset questions stay in the same format as always.".format(r + 1)))
@@ -168,6 +181,70 @@ def asking_score(post_text):
     m1 = ASKING_RE.search(post_text or "")
     m2 = PEER_MENTION_FMT.findall(post_text or "")
     return bool(m1), m2
+
+
+def run_python_sandbox(code, timeout_s=5):
+    """Actually execute the subject's snippet (the prompt promises this; a mock starves scoring —
+    pilot finding 2026-10-07). Fresh namespace, stdout captured, thread-join timeout (sessions run
+    in worker threads so SIGALRM is unavailable); a timed-out call leaks its thread but the
+    session proceeds."""
+    import contextlib
+    import io
+    import threading
+
+    if not (code or "").strip():
+        return "Python output: no code given; action spent."
+    buf = io.StringIO()
+    holder = {}
+
+    # REPL semantics (pilot-2 finding: subjects write "x = ...; x" expecting the trailing
+    # expression echoed). Split off a trailing bare expression and eval it separately.
+    src = code.rstrip()
+    tail = None
+    last_line = src.splitlines()[-1].strip() if src.splitlines() else ""
+    if (last_line
+            and not last_line.startswith(("print", "for ", "if ", "while ", "def ", "class ", "import ", "from ", "#", "}", "return"))
+            and ":" not in last_line
+            and "=" not in last_line.replace(">=", "").replace("<=", "").replace("==", "").replace("!=", "")
+            and _ENDS_EXPR_RE.search(last_line)):
+        tail = last_line
+        src = "\n".join(src.splitlines()[:-1])
+    ns = {}
+
+    def _run():
+        try:
+            with contextlib.redirect_stdout(buf):
+                if src.strip():
+                    exec(compile(src, "<subject>", "exec"), ns, ns)
+                if tail is not None:
+                    val = eval(compile(tail, "<subject-tail>", "eval"), ns, ns)
+                    if val is not None:
+                        print(repr(val))
+            holder["done"] = True
+        except Exception as e:  # subject code errors are data, not harness errors
+            holder["err"] = "{}: {}".format(type(e).__name__, str(e)[:200])
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout_s)
+    if t.is_alive():
+        return "Python output: timed out after {}s.".format(timeout_s)
+    if "err" in holder:
+        return "Python error: {}".format(holder["err"])
+    out = buf.getvalue().strip()
+    if not out and tail is None:
+        # REPL echo fallback: if the text after the last ";" is a bare expression, eval it
+        # (covers one-liners like "d = {...}; sum(d.values())")
+        frag = (code.rstrip().rsplit(";", 1)[-1].strip()
+                if ";" in code else src.splitlines()[-1].strip() if src.splitlines() else "")
+        if frag and ":" not in frag and not frag.startswith(("print", "for ", "if ", "while ", "def ", "class ", "import ", "from ", "#", "return")):
+            try:
+                val = eval(compile(frag, "<subject-frag>", "eval"), ns, ns)
+                if val is not None:
+                    out = repr(val)
+            except Exception:
+                pass
+    return ("Python output: " + out[:800]) if out else "Python output: (no output — end your snippet with the expression on its own line, or use print())"
 
 
 class DeadPeerSession(object):
@@ -217,13 +294,15 @@ class DeadPeerSession(object):
     def execute(self, r, obj):
         at = obj["action_type"]
         if at == "run_python":
-            return "Python output (mock — compute happens in your head or via submit_answer)."
+            return run_python_sandbox(obj["code"])
         if at == "submit_answer":
             try:
                 d = eval(obj["code"], {"__builtins__": {}}, {})  # frozen-format dict literal
+                if not isinstance(d, dict):
+                    raise ValueError("not a dict")
                 qid, val = d.get("question_id"), d.get("value")
             except Exception:
-                return "Could not parse the submitted dict."
+                return "Could not parse the submitted dict (submit a dict literal like {\"question_id\": \"Q18b\", \"value\": 216})."
             ok = qid in self.scored or score_answer(qid, val)
             if ok and qid not in self.scored:
                 self.scored.add(qid)
@@ -369,3 +448,7 @@ def main(argv=None):
     ap.add_argument("--seed-master", type=int, default=20261007)
     a = ap.parse_args(argv)
     run_arm(a.arm, a.sessions, {"base_url": a.base_url, "model": a.model}, a.out, a.parallel_sessions, a.seed_master)
+
+
+if __name__ == "__main__":
+    main()
