@@ -181,3 +181,7 @@ canary or the swarm size only through the board.
 
 *A research toy, not a benchmark — built and analyzed in one session, including two rounds of
 adversarial self-review that overturned an early wrong conclusion.*
+
+## Related
+
+The **dead-peer experiment** (what makes an agent check on a dead data supplier: unmet need plus a documented tool handle) grew out of this harness and lives in its own repo with all data: [kilojoules/dead-peer-experiment](https://github.com/kilojoules/dead-peer-experiment).
