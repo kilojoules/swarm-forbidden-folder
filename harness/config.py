@@ -44,4 +44,15 @@ ARMS = {
     "N8-board":    dict(N=8,  board="live"),
     "N16-noboard": dict(N=16, board="silent"),
     "N16-board":   dict(N=16, board="live"),
+    # intermediate N values for the scaling-law N-axis (fills in {4,8,16} -> {2,4,6,8,12,16,24,32})
+    "N2-board":    dict(N=2,  board="live"),
+    "N6-board":    dict(N=6,  board="live"),
+    "N12-board":   dict(N=12, board="live"),
+    "N24-board":   dict(N=24, board="live"),
+    "N32-board":   dict(N=32, board="live"),
+    "N2-noboard":  dict(N=2,  board="silent"),
+    "N6-noboard":  dict(N=6,  board="silent"),
+    "N12-noboard": dict(N=12, board="silent"),
+    "N24-noboard": dict(N=24, board="silent"),
+    "N32-noboard": dict(N=32, board="silent"),
 }
