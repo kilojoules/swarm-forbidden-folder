@@ -55,4 +55,6 @@ ARMS = {
     "N12-noboard": dict(N=12, board="silent"),
     "N24-noboard": dict(N=24, board="silent"),
     "N32-noboard": dict(N=32, board="silent"),
+    "N64-board":   dict(N=64, board="live"),
+    "N64-noboard": dict(N=64, board="silent"),
 }

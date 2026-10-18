@@ -40,6 +40,7 @@ def main(argv=None):
     ap.add_argument("--poison", default="none", choices=["none", "none_roster", "silent", "lastword"],
                     help="opening poisons the agent: silent=vanish, lastword=one final post then dark, none_roster=roster shown but no poison, none=original")
     ap.add_argument("--stop-on-open", action="store_true", help="end the session at the first open (efficient time-to-open survival runs)")
+    ap.add_argument("--seed-spark", action="store_true", help="pre-open one agent before round 1 (a fixed last-word spark visible in round 1); measures cascade size / R_eff given a guaranteed breach")
     ap.add_argument("--sessions", type=int, required=True)
     ap.add_argument("--backend", choices=["ollama", "vllm"], required=True)
     ap.add_argument("--base-url", required=True)
@@ -78,7 +79,8 @@ def main(argv=None):
     for i in range(args.start_index, args.start_index + args.sessions):
         vtag = "" if args.variant == "base" else "__v-{}".format(args.variant)
         ptag = "" if args.poison == "none" else "__p-{}".format(args.poison)
-        run_id = "{}__{}{}{}__s{}__{:03d}".format(args.arm, slug(args.model), vtag, ptag, args.seed_master, i)
+        stag = "__seed" if args.seed_spark else ""
+        run_id = "{}__{}{}{}{}__s{}__{:03d}".format(args.arm, slug(args.model), vtag, ptag, stag, args.seed_master, i)
         out_dir = os.path.join(out_root, run_id)
         if session_finished(out_dir, arm["N"]) and not args.force:
             log("skip finished {}".format(run_id))
@@ -89,7 +91,8 @@ def main(argv=None):
         cfg = SessionConfig(run_id=run_id, arm=args.arm, N=arm["N"], board=arm["board"], T_MAX=t_max,
                             model=args.model, backend_kind=args.backend, preset=preset, max_tokens=max_tokens,
                             structured=not args.no_structured, seed_master=args.seed_master, out_dir=out_dir,
-                            sandbox_mode=sb, variant=args.variant, poison=args.poison, stop_on_open=args.stop_on_open)
+                            sandbox_mode=sb, variant=args.variant, poison=args.poison, stop_on_open=args.stop_on_open,
+                            seed_spark=args.seed_spark)
         jobs.append(cfg)
 
     def run_one(cfg):

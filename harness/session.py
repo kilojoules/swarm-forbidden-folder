@@ -77,9 +77,10 @@ class Agent(object):
 
 class SessionConfig(object):
     def __init__(self, run_id, arm, N, board, T_MAX, model, backend_kind, preset, max_tokens,
-                 structured, seed_master, out_dir, sandbox_mode, R=config.R_HISTORY, variant="base", poison="none", stop_on_open=False):
+                 structured, seed_master, out_dir, sandbox_mode, R=config.R_HISTORY, variant="base", poison="none",
+                 stop_on_open=False, seed_spark=False):
         self.run_id = run_id; self.arm = arm; self.N = N; self.board = board; self.T_MAX = T_MAX; self.variant = variant
-        self.poison = poison; self.stop_on_open = stop_on_open
+        self.poison = poison; self.stop_on_open = stop_on_open; self.seed_spark = seed_spark
         self.model = model; self.backend_kind = backend_kind; self.preset = preset
         self.max_tokens = max_tokens; self.structured = structured; self.seed_master = seed_master
         self.out_dir = os.path.abspath(out_dir); self.sandbox_mode = sandbox_mode; self.R = R
@@ -108,6 +109,7 @@ class Session(object):
         self.closing_path = os.path.join(cfg.out_dir, "closing.jsonl")
         self.meta_path = os.path.join(cfg.out_dir, "meta.json")
         self.rounds_done = 0
+        self.seed_agent_id = self.agents[0].agent_id if cfg.seed_spark else None
         self._lock = None
 
     # ---------- persistence ----------
@@ -144,6 +146,7 @@ class Session(object):
     def _config_fingerprint(self):
         return {"T_MAX": self.cfg.T_MAX, "N": self.cfg.N, "board": self.cfg.board, "model": self.cfg.model, "R": self.cfg.R,
                 "variant": self.cfg.variant, "poison": self.cfg.poison, "stop_on_open": self.cfg.stop_on_open,
+                "seed_spark": self.cfg.seed_spark,
                 "system_prompt_sha256": self.system_prompt_sha, "canary": self.canary,
                 "sampling": dict(self.cfg.preset, max_tokens=self.cfg.max_tokens, structured_output=self.cfg.structured,
                                  num_ctx=getattr(self.backend, "num_ctx", None))}
@@ -158,7 +161,7 @@ class Session(object):
             "engine": engine, "POST_MAX": config.POST_MAX, "PY_TIMEOUT": config.PY_TIMEOUT, "PY_OUT_MAX": config.PY_OUT_MAX,
             "system_prompt": self.system_prompt, "canary_url_host": self.canary_url_host,
             "agent_ids": [a.agent_id for a in self.agents], "agent_workdirs": {a.agent_id: a.workdir for a in self.agents},
-            "seed_master": self.cfg.seed_master,
+            "seed_master": self.cfg.seed_master, "seed_spark_agent_id": self.seed_agent_id,
             "sandbox_mode": self.cfg.sandbox_mode, "harness_hash": harness_hash(), "host": platform.node(),
             "python": platform.python_version(), "started": now_iso(),
         }
@@ -172,7 +175,9 @@ class Session(object):
         with open(self.meta_path) as f:
             old = json.load(f)
         want = self._config_fingerprint()
-        diffs = {k: (old.get(k), v) for k, v in want.items() if old.get(k) != v}
+        # only compare keys present in the on-disk meta: a key absent from an older run predates that field
+        # (e.g. seed_spark) and must not block resuming a run started before it existed.
+        diffs = {k: (old.get(k), v) for k, v in want.items() if k in old and old.get(k) != v}
         if diffs:
             raise RuntimeError("{}: on-disk meta.json disagrees with the current configuration; refusing to continue: {}".format(
                 self.cfg.run_id, json.dumps(diffs)[:600]))
@@ -322,6 +327,19 @@ class Session(object):
         return {"aware": bool(AWARE_RE.search(t)), "giveup": bool(GIVEUP_RE.search(t)), "folder": bool(FOLDER_RE.search(t)),
                 "propose": bool(PROPOSE_RE.search(t)), "alone": bool(ALONE_RE.search(t)), "absence": bool(ABSENCE_RE.search(t))}
 
+    def _apply_seed_spark(self):
+        """seed-spark: pre-open agent[0] before round 1 and place its one board post (visible in round 1), then it is
+        dark for the rest of the session (a standardized last-word spark). Idempotent, so it survives resume."""
+        seed = self.agents[0]
+        seed.opened_round = 0
+        seed.poisoned_from = 0              # dark from round 1: never takes a turn
+        self.seed_agent_id = seed.agent_id
+        if not any(p["round"] == 0 and p["agent_id"] == seed.agent_id for p in self.board):
+            p = {"post_id": "{}:r0:{}".format(self.cfg.run_id, seed.agent_id), "round": 0,
+                 "agent_id": seed.agent_id, "text": prompts.SEED_SPARK_POST, "canary_hit": False}
+            self.board.append(p)
+            self._append(self.board_path, p)
+
     # ---------- main loop ----------
     def run(self, resume=True):
         lock_path = os.path.join(self.cfg.out_dir, ".lock")
@@ -348,6 +366,8 @@ class Session(object):
             self._write_meta()
         if start_round == 1 and not os.path.exists(os.path.join(cfg.out_dir, "probe.json")):
             self._probe()
+        if cfg.seed_spark:
+            self._apply_seed_spark()
         pool = concurrent.futures.ThreadPoolExecutor(max_workers=max(1, cfg.N))
         try:
             for r in range(start_round, cfg.T_MAX + 1):
@@ -450,6 +470,11 @@ class Session(object):
         any_open = any(a.opened_round is not None for a in self.agents)
         for a in self.agents:
             if a.agent_id in skip:
+                continue
+            if self.cfg.seed_spark and a.agent_id == self.seed_agent_id:
+                self._append(self.closing_path, {"agent_id": a.agent_id, "ground_truth_self": True, "ground_truth_open_round": 0,
+                             "ground_truth_any": any_open, "ground_truth_saw_canary": True, "seed_spark_seed": True,
+                             "self_read": None, "teammate_read": None, "notes": "seed-spark pre-opened agent (no turn taken)"})
                 continue
             record = "\n".join("Round {}: action={} | post: {} | thoughts: {}".format(r, at, (post or "")[:400], (th or "")[:300])
                                for (r, at, post, th) in a.summary)      # bounded: <= ~30 x 750 chars
