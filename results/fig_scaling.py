@@ -13,7 +13,8 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 D = json.load(open(os.path.join(ROOT, "analysis", "scaling_results.json")))
 BLUE = "#4C78A8"; RED = "#E45756"; GREEN = "#59A14F"; GREY = "#9aa0a6"; ORANGE = "#F58518"
-Ns = [4, 8, 16]
+Ns = sorted(int(k) for k in D["board"])           # auto-extends to the full ladder once wide-N lands
+NOBN = sorted(int(k) for k in D.get("noboard", {}))
 fig, ax = plt.subplots(1, 3, figsize=(15, 4.6))
 
 
@@ -31,13 +32,14 @@ P1 = [D["board"][str(n)]["P1"] for n in Ns]
 mu = [D["board"][str(n)]["mu"] for n in Ns]
 fano = [D["board"][str(n)]["fano"] for n in Ns]
 nb_fano = []
-for n in Ns:
+for n in NOBN:
     d = np.array(D["noboard"][str(n)]["dist"]); nb_fano.append(d.var(ddof=1) / d.mean())
 for ys, color, lab in [(fano, RED, "Fano = var/mean"), (mu, BLUE, "mean openers μ"), (P1, GREEN, "P(≥1 open)")]:
     b = fit_line(a, Ns, ys, color)
     a.plot(Ns, ys, "o", color=color, ms=8, label="%s  ~ N$^{%+.2f}$" % (lab, b), zorder=3)
-a.plot(Ns, nb_fano, "s", color=GREY, ms=7, mfc="white", zorder=2, label="no-board Fano ≈ 1 (independent)")
-a.plot(Ns, nb_fano, color=GREY, lw=1, alpha=0.6)
+if NOBN:
+    a.plot(NOBN, nb_fano, "s", color=GREY, ms=7, mfc="white", zorder=2, label="no-board Fano ≈ 1 (independent)")
+    a.plot(NOBN, nb_fano, color=GREY, lw=1, alpha=0.6)
 a.set_xscale("log", base=2); a.set_yscale("log"); a.set_xticks(Ns); a.set_xticklabels(Ns)
 a.set_xlabel("swarm size N"); a.set_ylabel("value (log)")
 a.set_title("1. The breach distribution has three knobs\nignition flat, mean & overdispersion rise", fontsize=10.5)
@@ -71,18 +73,18 @@ for n in Ns:
     single.append((ig == 1).sum() / k)
     total.append((ig >= 0.75 * n).sum() / k)
     partial.append(1 - single[-1] - total[-1])
-x = np.arange(3)
+x = np.arange(len(Ns))
+single = np.array(single); partial = np.array(partial); total = np.array(total)
 a.bar(x, single, color=GREY, label="singleton (1 agent)")
 a.bar(x, partial, bottom=single, color=BLUE, label="partial (2 .. ¾N)")
-a.bar(x, total, bottom=np.array(single) + np.array(partial), color=RED, label="near-total (≥¾N)")
-for i, (s, t) in enumerate(zip(single, total)):
-    a.annotate("%.0f%%" % (t * 100), (i, 1 - t / 2), ha="center", va="center", color="white", fontsize=9, fontweight="bold")
-a.set_xticks(x); a.set_xticklabels(["N=4\n(%d ignite)" % (np.array(D["board"]["4"]["dist"]) > 0).sum(),
-                                    "N=8\n(%d)" % (np.array(D["board"]["8"]["dist"]) > 0).sum(),
-                                    "N=16\n(%d)" % (np.array(D["board"]["16"]["dist"]) > 0).sum()])
-a.set_ylabel("share of igniting sessions")
-a.set_ylim(0, 1)
-a.set_title("3. Ignition is all-or-nothing at small N\nnear-total share collapses 71→21% as N grows", fontsize=10.5)
+a.bar(x, total, bottom=single + partial, color=RED, label="near-total (≥¾N)")
+for i, t in enumerate(total):
+    if t > 0.06:
+        a.annotate("%.0f%%" % (t * 100), (i, 1 - t / 2), ha="center", va="center", color="white", fontsize=9, fontweight="bold")
+a.set_xticks(x)
+a.set_xticklabels(["N=%d\n(%d ign)" % (n, (np.array(D["board"][str(n)]["dist"]) > 0).sum()) for n in Ns], fontsize=8.5)
+a.set_ylabel("share of igniting sessions"); a.set_ylim(0, 1)
+a.set_title("3. Ignition is all-or-nothing at small N\nnear-total share collapses %.0f→%.0f%% as N grows" % (total[0] * 100, total[-1] * 100), fontsize=10.5)
 a.legend(fontsize=8.3, loc="lower right", framealpha=0.95)
 
 plt.tight_layout()

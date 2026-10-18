@@ -20,15 +20,28 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis.common import load_runs, first_open_per_agent  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RUNS = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "runs", "core")
 TMAX = 30
-Ns = [4, 8, 16]
-ARMS = [("N4-board", 4), ("N8-board", 8), ("N16-board", 16)]
-NOB = [("N4-noboard", 4), ("N8-noboard", 8), ("N16-noboard", 16)]
+# N=4,8,16 live in runs/core; the wide-N ladder (2,32,64) lands in runs/wideN. Both are scanned and merged.
+CORE = os.path.join(ROOT, "runs", "core")
+ROOTS = [CORE, os.path.join(ROOT, "runs", "wideN")] + ([sys.argv[1]] if len(sys.argv) > 1 else [])
 
 
 def runs(arm):
-    return [r for r in load_runs(RUNS, arms=[arm]) if r["finished"]]
+    out, seen = [], set()
+    for rt in ROOTS:
+        if not os.path.isdir(rt):
+            continue
+        for r in load_runs(rt, arms=[arm]):
+            if r["finished"] and r["dir"] not in seen:
+                seen.add(r["dir"]); out.append(r)
+    return out
+
+
+# discover the N ladder from whichever board arms have finished sessions
+Ns = [n for n in [2, 4, 6, 8, 12, 16, 24, 32, 64] if runs("N%d-board" % n)]
+ARMS = [("N%d-board" % n, n) for n in Ns]
+NOB = [("N%d-noboard" % n, n) for n in Ns if runs("N%d-noboard" % n)]
+print("N ladder (board):", Ns, "| no-board:", [n for _, n in NOB])
 
 
 def loglog_slope(xs, ys):
@@ -126,7 +139,7 @@ slopes = {
     "h_post_obs": loglog_slope(Ns, [gap2[n]["o_post"] for n in Ns]),
     "h_post_pred": loglog_slope(Ns, [gap2[n]["pred_post"] for n in Ns]),
     "h_post_eff": loglog_slope(Ns, [gap2[n]["eff_post"] for n in Ns]),
-    "noboard_rate": loglog_slope(Ns, [rate_by_N[n] for n in Ns]),
+    "noboard_rate": loglog_slope([n for _, n in NOB], [rate_by_N[n] for _, n in NOB]) if len(NOB) >= 2 else (float("nan"), float("nan")),
 }
 out = {
     "baseline_h1": [round(float(x), 5) for x in h1],
