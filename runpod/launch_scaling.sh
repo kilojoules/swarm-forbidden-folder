@@ -31,22 +31,23 @@ RUN="python3 -m harness.run --backend vllm --base-url $BASE --model $MODEL --var
 echo "== smoke: 2x N1 (stop-on-open) to confirm endpoint + parsing"
 $RUN --arm N1-pool --sessions 2 --parallel-sessions 2 --out runs/scaling_smoke --stop-on-open
 
-echo "== [1/3] batch-pad: N1-pool x60, 1-wide (lo) then 64-wide (hi); identical seeds, only batch width differs"
-$RUN --arm N1-pool --sessions 60 --parallel-sessions 1  --out runs/batchpad_lo --seed-master 777
-$RUN --arm N1-pool --sessions 60 --parallel-sessions 64 --out runs/batchpad_hi --seed-master 777
-
-echo "== [2/3] core-wideN: board x30 + noboard x10 at ~64-wide (PAR=64/N), N=2,32,64"
+echo "== [1/3] core-wideN: board x30 + noboard x10 at ~64-wide (PAR=64/N), N=2,32,64"
 for N in 2 32 64; do
-  PAR=$(( 64 / N )); [[ $PAR -lt 1 ]] && PAR=1
+  PAR=$(( 128 / N )); [[ $PAR -lt 1 ]] && PAR=1    # saturate the pod's 128-seq capacity; fewer idle gaps between synchronous rounds
   echo "-- N${N}-noboard x10 (PAR=$PAR)"; $RUN --arm "N${N}-noboard" --sessions 10 --parallel-sessions "$PAR" --out runs/wideN
   echo "-- N${N}-board   x30 (PAR=$PAR)"; $RUN --arm "N${N}-board"   --sessions 30 --parallel-sessions "$PAR" --out runs/wideN
 done
 
-echo "== [3/3] seed-spark: board x30 with one pre-opened agent, at ~64-wide, N=4,8,16,32,64"
+echo "== [2/3] seed-spark: board x30 with one pre-opened agent, at ~64-wide, N=4,8,16,32,64"
 for N in 4 8 16 32 64; do
-  PAR=$(( 64 / N )); [[ $PAR -lt 1 ]] && PAR=1
+  PAR=$(( 128 / N )); [[ $PAR -lt 1 ]] && PAR=1
   echo "-- N${N}-board seed-spark x30 (PAR=$PAR)"; $RUN --arm "N${N}-board" --sessions 30 --parallel-sessions "$PAR" --out runs/seedspark --seed-spark
 done
+
+# batch-pad LAST (the deliberately-serial 1-wide arm must not block the science); 30 is ample for the rate contrast
+echo "== [3/3] batch-pad: N1-pool x30, 1-wide (lo) then 64-wide (hi); identical seeds, only batch width differs"
+$RUN --arm N1-pool --sessions 30 --parallel-sessions 1  --out runs/batchpad_lo --seed-master 777
+$RUN --arm N1-pool --sessions 30 --parallel-sessions 64 --out runs/batchpad_hi --seed-master 777
 
 echo "== done $(date -u +%FT%TZ). Pod $POD still running."
 echo "== terminate with: python3 runpod/pod.py terminate $POD"

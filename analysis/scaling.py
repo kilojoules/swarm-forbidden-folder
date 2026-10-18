@@ -91,10 +91,13 @@ for arm, N in ARMS:
                 buk[1] += 1; buk[2] += h1[rd]
                 if t == rd:
                     buk[0] += 1
-    o_pre, o_post = bef[0] / bef[1], aft[0] / aft[1]
-    p_pre, p_post = bef[2] / bef[1], aft[2] / aft[1]
+    nan = float("nan")
+    o_pre = bef[0] / bef[1] if bef[1] else nan
+    o_post = aft[0] / aft[1] if aft[1] else nan      # nan when no post-visible agent-rounds (no spark in any session)
+    p_pre = bef[2] / bef[1] if bef[1] else nan
+    p_post = aft[2] / aft[1] if aft[1] else nan
     gap2[N] = dict(o_pre=o_pre, o_post=o_post, pred_pre=p_pre, pred_post=p_post,
-                   eff_pre=o_pre / p_pre, eff_post=o_post / p_post,
+                   eff_pre=(o_pre / p_pre if p_pre else nan), eff_post=(o_post / p_post if p_post else nan),
                    spark_med=float(np.median(sparks)) if sparks else None, n_spark=len(sparks))
 
 # GAP3: is the no-board per-agent rate flat in N? logistic slope on log(N), session-clustered bootstrap

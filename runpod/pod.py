@@ -40,10 +40,10 @@ def reasoning_parser(model):
     return None
 
 
-def docker_args(model, max_len, thinking, quantization=None):
+def docker_args(model, max_len, thinking, quantization=None, max_num_seqs=128):
     args = ["--model", model, "--served-model-name", model, "--host", "0.0.0.0", "--port", "8000",
             "--max-model-len", str(max_len), "--enable-prefix-caching", "--gpu-memory-utilization", "0.92",
-            "--max-num-seqs", "128", "--dtype", "auto"]
+            "--max-num-seqs", str(max_num_seqs), "--dtype", "auto"]
     if quantization:
         args += ["--quantization", quantization]
     rp = reasoning_parser(model)
@@ -58,11 +58,11 @@ def create(a):
     pod = runpod.create_pod(
         name=a.name, image_name=VLLM_IMAGE, gpu_type_id=a.gpu, cloud_type=a.cloud, gpu_count=1,
         volume_in_gb=a.volume_gb, container_disk_in_gb=a.disk_gb, volume_mount_path="/root/.cache/huggingface",
-        ports="8000/http,22/tcp", docker_args=docker_args(a.model, a.max_len, thinking, a.quantization),
+        ports="8000/http,22/tcp", docker_args=docker_args(a.model, a.max_len, thinking, a.quantization, a.max_num_seqs),
         env={"HF_HUB_ENABLE_HF_TRANSFER": "1", "VLLM_LOGGING_LEVEL": "INFO"},
     )
     print(json.dumps({"pod_id": pod["id"], "name": a.name, "gpu": a.gpu, "cloud": a.cloud, "image": VLLM_IMAGE,
-                      "docker_args": docker_args(a.model, a.max_len, thinking, a.quantization)}))
+                      "docker_args": docker_args(a.model, a.max_len, thinking, a.quantization, a.max_num_seqs)}))
     return pod["id"]
 
 
@@ -120,6 +120,7 @@ def main():
     c.add_argument("--name", default="swarm-vllm")
     c.add_argument("--max-len", type=int, default=32768)
     c.add_argument("--quantization", default=None, help="e.g. fp8 (halves weight memory for large models)")
+    c.add_argument("--max-num-seqs", type=int, default=128, help="vLLM concurrent-sequence cap; lower (e.g. 48) prevents KV-cache OOM under large prompts")
     c.add_argument("--volume-gb", type=int, default=60)
     c.add_argument("--disk-gb", type=int, default=30)
     c.set_defaults(fn=create)
