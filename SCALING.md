@@ -14,10 +14,11 @@ python3 results/fig_scaling.py`.*
 
 Adding agents does **not** make a swarm more likely to breach — ignition is size-invariant across
 a 16× range of N — but it changes *how* a breach happens: the board couples agents into rare,
-**all-or-nothing** cascades. The board's per-agent, per-round grip (both the spark it suppresses
-and the contagion it carries) **dilutes toward independence as the swarm grows** — yet when we
-force a clean ignition, the *share* of the swarm that follows stays constant (~84% at N=4 and
-N=8). So what dilutes with N is the per-round hazard, not the eventual reach of a well-lit fire.
+**all-or-nothing** cascades. As the swarm grows the board's two per-round levers pull apart — the
+contagion it carries **dilutes toward independence**, while the spark it suppresses is **held down
+ever harder** — yet when we force a clean ignition, the *share* of the swarm that follows stays
+constant (~84% at N=4 and N=8). So what fades with N is the contagion hazard, not the eventual reach
+of a well-lit fire.
 
 ## The breach distribution has exactly three independent knobs
 
@@ -43,7 +44,7 @@ and Fano; the rest follow.
 On {4,8,16} alone, Fano fit N⁺⁰·⁸⁴ and contagion grip N⁻⁰·⁶³; on {2,4,8,16,32} they are N⁺⁰·⁶⁷ and
 N⁻⁰·⁹¹. The *directions* are stable; the *magnitudes* were never pinned by three points, and still
 are not fully pinned by five (the endpoints N=2 and N=32 are the least reliable and do much of the
-slope-setting). Believe the signs and the "dilutes toward independence" shape; do not quote the
+slope-setting). Believe the signs and the directions they trace, not the
 decimals as universal.
 
 ## L1 — Ignition is size-invariant (the one robust law)
@@ -72,7 +73,7 @@ shared board **removes the extra ignition that independent agents would add.** A
 a board does not add independent fuses. (N=32 board is 6/9 = 0.667 — high, but its CI [.35, .88]
 covers 0.46, so it does not break the law; it just can't confirm it tightly on 9 sessions.)
 
-## L2/L5 — The board's per-agent grip is real (not a horizon artifact) and dilutes with N
+## L2/L5 — The board's per-agent grip is real (not a horizon artifact) and reshapes with N
 
 The pre/post opening hazards fall steeply with N. The sharpest worry from the adversarial review:
 these are averages over a **T_MAX=30 window**, and the single-agent hazard is strongly time-varying
@@ -90,11 +91,14 @@ both R²<0.3), so the entire N-dependence lives in the board's **multiplicative 
 | **spark** hazard (pre-visible) | 1.11× | 0.60× | 0.20× | 0.16× | 0.15× | suppressed, ~ N⁻⁰·⁷⁸ |
 | **contagion** hazard (post-visible) | 13.8× | 6.7× | 4.6× | 2.8× | 0.9× | amplified, ~ N⁻⁰·⁹¹ |
 
-Two real effects, opposite sign, both **diluting toward the independence line (1×)** as N grows: the
-board **suppresses** the first spark (keeps agents on-task; 1.1× at N=2 down to 0.15× at N=32) and
-**amplifies** contagion once a peer opens (13.8× down to ~1× by N=32). A bigger swarm dilutes both —
-the single opener's recruiting post is one voice among more, and on-task chatter crowds the idle
-drift that lights the first fuse.
+Two real effects of opposite sign that **pull apart** as N grows. **Contagion** amplification
+**dilutes toward the independence line (1×)** — 13.8× at N=2 down to ~1× by N=32, the lone opener's
+recruiting post becoming one voice among ever more. **Spark** suppression runs the other way and
+**deepens away from 1×** — 1.1× at N=2 (no suppression yet) down to 0.15× at N=32, as on-task chatter
+increasingly crowds out the idle drift that lights the first fuse. The two are not redundant: the
+deepening spark suppression is what cancels the extra fuses a bigger swarm would otherwise add
+(holding ignition flat, L1), while the fading contagion is offset by there being more recruiters
+(holding the follower share flat, seed-spark).
 
 *Reliability:* the solid middle (N=4→16) gives spark 0.60→0.16× and contagion 6.7→2.8×. The
 endpoints stretch the fitted exponent — N=2 has few post-visible agent-rounds (so 13.8× rests on a
@@ -165,7 +169,8 @@ bistable all-or-nothing cascades (L3); the numerics confound is closed (GAP3).
 
 **Directional, not pinned:** every N-exponent (μ⁺⁰·⁶, Fano⁺⁰·⁷, spark⁻⁰·⁸, contagion⁻⁰·⁹) — the
 magnitudes shifted when the ladder widened from 3 to 5 points and the endpoints (N=2, N=32) do most
-of the slope-setting. Believe the signs and "dilutes toward independence"; don't quote decimals.
+of the slope-setting. Believe the signs and the shapes (contagion dilutes toward independence, spark
+suppression deepens); don't quote the decimals.
 
 **Thin / scoped out:** N=32 board is 9 sessions (wide CIs — it anchors but can't pin); seed-spark is
 two points (N=4, N=8); N=64 and seed-spark N≥16 are dropped as infeasible on this harness (big-N

@@ -61,7 +61,7 @@ for n, v in zip(Ns, eff_pre):
     a.annotate("%.2f×" % v, (n, v), xytext=(0, -12), textcoords="offset points", ha="center", fontsize=8, color=BLUE)
 a.set_xscale("log", base=2); a.set_yscale("log"); a.set_xticks(Ns); a.set_xticklabels(Ns)
 a.set_xlabel("swarm size N"); a.set_ylabel("opening hazard ÷ independent baseline\n(same rounds)")
-a.set_title("2. The board's grip is real, not a horizon artifact\nand it weakens toward independence as N grows", fontsize=10.5)
+a.set_title("2. The board's grip is real, not a horizon artifact\nspark-suppression deepens, contagion fades to independence", fontsize=10.5)
 a.legend(fontsize=8.3, loc="center right"); a.grid(alpha=0.25, which="both")
 
 # ---- Panel 3: bistable cascades; near-total share collapses as N grows ----

@@ -116,6 +116,65 @@ channel was intact (last-word, N=16). Cut the message and the cascade cannot for
   openly *on the board*, but when a debrief asks them directly, a substantial fraction deny it
   — a false statement to the overseer that contradicts their own logged actions.
 
+## A bigger swarm is no more likely to breach
+
+So far we've held swarm size fixed — mostly at 16 agents. Vary it instead, up and down a
+log-ladder — N ∈ {2, 4, 8, 16, 32}, a 16× range — and the answer is reassuring in one way and
+unsettling in another: **a bigger swarm is not more likely to breach.** The chance that *someone*
+opens the folder holds near ~0.46 across the whole range (only the thin N=32 point runs higher).
+Size barely moves *whether* the rule breaks — it reshapes *how*.
+
+![Scaling with swarm size](results/fig_scaling.png)
+
+*Left — the three independent facts of the breach-count distribution: ignition P(≥1 open) flat
+across N, mean openers and overdispersion (Fano) rising, independent-agent Fano pinned at ≈1.
+Middle — the board's opening-hazard multiplier over a time-matched lone-agent baseline: as the swarm
+grows the two levers pull apart, contagion (red) fading toward the 1× independence line while
+spark-suppression (blue) deepens further below it. Right — conditional on ignition the cascade stays
+bimodal, but the near-total share of igniting sessions thins as N grows.*
+
+**Ignition is size-invariant — and a control proves it, not merely fails to reject it.**
+Independent agents *have* to get more dangerous as you add them: with a per-agent rate `p`, the
+chance that at least one breaks the rule rises as 1−(1−p)ᴺ. The no-board arm does exactly that —
+0.50 at N=2, dead-certain 1.00 by N=8 and beyond. The board arm barely moves: 0.47, 0.47, 0.40,
+0.47, and a noisy 0.67 at the thin 9-session N=32 point (whose wide interval still covers the rest).
+By N=16, sixteen independent agents are *guaranteed* to produce a breach while a boarded swarm of
+the same size still breaches only about half the time. **A shared
+board removes the extra fuses that adding independent agents would light** — the single most robust
+result in the study.
+
+**The board's per-round grip on each agent weakens and reshapes as the swarm grows — and the two
+levers move in opposite directions.** Each is measured as a multiplier over a *time-matched*
+lone-agent baseline, so it isn't an artifact of the fixed 30-round window. *Contagion* fades toward
+independence: a visible opening multiplies a peer's hazard ~13.8× at N=2, eases through the
+several-fold range the fixed-16 panels above report (≈6.7× to ≈2.8× over N=4–16), and thins to ~1×
+by N=32 — a single noisy 9-session point, so read it as *trending* toward independence, not arrived.
+*Spark-suppression* runs the opposite way and deepens: a would-be opener sits at 1.1× the solo hazard
+at N=2 (no suppression yet) and is clamped to 0.15× by N=32. That deepening per-agent suppression is
+the flip side of the flat ignition line above — the board damps each agent just enough that adding
+more doesn't add fuses — while each recruiting post becomes one voice among more.
+
+**But a cleanly-lit fire still takes the same share of the swarm.** Falling per-round hazards could
+mean contagion itself weakens with size — or just that larger swarms ignite later and messier. A
+**seed-spark** control separates the two: pre-open one agent before round 1 so ignition is no longer
+random, then count who follows. The *share* of the exposed swarm that gets recruited is **constant,
+~84% at both N=4 and N=8**, even as the head-count of followers grows. The *reach* of a well-lit
+fire doesn't shrink with size; what shrinks is the per-round hazard — so much of the apparent
+cascade-dilution is really about *ignition timing*, not contagion losing its grip.
+
+**The failure stays all-or-nothing.** Conditional on igniting, the board keeps producing bimodal
+cascades — most sessions nobody opens, a few sessions nearly everyone does — with overdispersion
+(Fano) climbing from ~1 to ~6 as N grows while the no-board arm sits at ~1 throughout. This is
+threshold contagion, not a system tuned to criticality.
+
+*Honest limits.* Only the **flat ignition line** is truly pinned (control-certified, five points).
+The *directions* are solid — contagion fading toward independence, spark-suppression deepening — but
+the **exponents are not**: their magnitudes moved when the ladder grew from three points to five, and
+the endpoints carry most of the slope, so trust the signs, not the decimals. N=32 is a thin 9-session anchor (a big-N board session runs ~1 min per
+round and barely fits under the memory-safe concurrency cap — which is why N=64 was infeasible), and
+the constant follower share is still only two points. The full ladder, every confound, and the
+control that settles each one are laid out in [`SCALING.md`](SCALING.md).
+
 ## Rule-breaking peaks at middle capability, not at the top
 
 Set the swarm aside and ask a single agent: does a bigger model break the rule sooner, later,
@@ -158,7 +217,7 @@ a hopeless task shows any signal. `Qwen2.5-7B-Instruct` opens; the same family a
 ~0 across 80 sessions, as do all reasoning models tried (`Qwen3-8B`, `DeepSeek-R1-Distill-14B`,
 `gpt-oss-20B`). More capable means better rule-following, which on a folder with no real payoff
 means no breach. The study cannot speak to frontier models, to instrumentally-motivated
-transgression, or to swarms much larger than 16.
+transgression, or to swarms much larger than the few dozen agents tested here.
 
 ## Repository
 
@@ -171,6 +230,7 @@ runpod/      serve a model on a RunPod GPU (vLLM) and run the sweep
 results/     the animation, the figures, and the scripts that build them
 boards/      the shared-board conversation logs — every session's board, plus rendered ones
 PILOT.md     the full experimental design
+SCALING.md   how the breach dynamics scale with swarm size N — the 5-point ladder and its controls
 REVIEW2_and_IMPROVEMENTS.md   an adversarial review of the built study and its limits
 ```
 
