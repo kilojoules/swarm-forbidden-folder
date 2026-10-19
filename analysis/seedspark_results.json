@@ -1,0 +1,70 @@
+{
+ "by_N": {
+  "4": {
+   "sessions": 30,
+   "atrisk": 3,
+   "mean_followers": 2.533333333333333,
+   "mean_gen1_Reff": 2.3,
+   "p_any_follower": 1.0,
+   "mean_follower_fraction": 0.8444444444444446,
+   "followers_dist": [
+    2,
+    3,
+    3,
+    3,
+    2,
+    3,
+    3,
+    3,
+    3,
+    2,
+    3,
+    3,
+    1,
+    2,
+    2,
+    2,
+    3,
+    2,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3,
+    2,
+    3,
+    3,
+    3,
+    3,
+    2
+   ]
+  },
+  "8": {
+   "sessions": 16,
+   "atrisk": 7,
+   "mean_followers": 5.875,
+   "mean_gen1_Reff": 5.4375,
+   "p_any_follower": 1.0,
+   "mean_follower_fraction": 0.8392857142857143,
+   "followers_dist": [
+    7,
+    6,
+    6,
+    6,
+    5,
+    5,
+    6,
+    6,
+    5,
+    6,
+    6,
+    6,
+    7,
+    4,
+    6,
+    7
+   ]
+  }
+ }
+}
